@@ -124,26 +124,53 @@ def temperature_data(station_id):
     names = ['year', 'month', 'data_type', 1, 2, 3, 4, 5, 6, 7, 8, 9,
         10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
 
-    dates = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
-
     df = pd.read_fwf(station_url, widths=widths, usecols=cols, 
         header=None, names=names, parse_dates=[['year', 'month']], index_col=0, na_values='-9999')
 
     # Selects just the TMAX and TMIN rows.
-    df = df.loc[df['data_type'].isin(['TMAX', 'TMIN'])]
-    
-
-    # Selects only temperature data, ignoring the column 'data_type'. 
-    # Converts all temperature recordings to Fahrenheit.
-    df2 = df.iloc[:, 1:]
-    df2 = ((df2 / 10) * 1.8) + 32
+    df1 = df.loc[df['data_type'].isin(['TMAX'])]
+    df2 = df.loc[df['data_type'].isin(['TMIN'])]
 
     # If the most recent date in the data is less than 2010
     # we will pull additional data from another source.
     #if df['year_month'] < 2010
 
-    matplotlib.style.use('ggplot')
-    return df2.plot()
+    # Selects only temperature data, ignoring the column 'data_type'. 
+    # Converts all temperature recordings to Fahrenheit.
+    dfmax = df1.iloc[:, 1:]
+    dfmax = ((dfmax / 10) * 1.8) + 32
+
+    dfmin = df2.iloc[:, 1:]
+    dfmin = ((dfmin / 10) * 1.8) + 32
+
+    max_avg = dfmax.mean(axis=1)
+    min_avg = dfmin.mean(axis=1)
+
+    maxmin_avg = pd.concat([max_avg, min_avg], axis=1)
+
+    avg_temps = pd.concat([max_avg, min_avg, maxmin_avg.mean(axis=1)], axis=1, keys=[0, 1, 2])
+
+    trace_hi = go.Scatter(
+        x = avg_temps.index, 
+        y = avg_temps[0],
+        name = 'Highs'
+    )
+    trace_lo = go.Scatter(
+        x = avg_temps.index,
+        y = avg_temps[1],
+        name = 'Lows'
+    )
+    trace_avg = go.Scatter(
+        x = avg_temps.index,
+        y = avg_temps[2],
+        name = 'Average'
+    )
+    
+    data = [trace_hi, trace_lo, trace_avg]
+
+    url = py.plot(data, filename='pandas-temperature')
+    return url
+
 
 
 """
@@ -203,13 +230,12 @@ def station(request):
     # Sort the stations based on distance to the target city.
     station_list_sorted = sorted(station_list, key=get_dist)
 
-    nearest_station_id = station_list_sorted[0]['id_code']
-
-    graph_url = temperature_data(nearest_station_id)
+    #nearest_station_id = station_list_sorted[0]['id_code']
+    #graph_url = temperature_data(nearest_station_id)
 
     # Select the station at position 0 on the list, which should be
     # the closest station to the target city, and JSON format it.
-    json_data = (json.dumps(graph_url, sort_keys=True, indent=4))
+    json_data = (json.dumps(station_list_sorted, sort_keys=True, indent=4))
     print(json_data)
     response = HttpResponse(json_data, content_type='application/json')
     return response
