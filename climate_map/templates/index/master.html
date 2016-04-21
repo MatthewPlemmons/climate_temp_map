@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+
+		<meta name='viewport' content='width=device-width, initial-scale=1' charset="utf-8">
+
+
+		<link href='/static/climate_map/bootstrap.min.css' rel='stylesheet'/>
+
+		<link href='/static/climate_map/style.css' rel='stylesheet'/>
+
+        <script src='https://maps.googleapis.com/maps/api/js?key={{ key }}'></script>
+
+        <script src='/static/climate_map/markerwithlabel_packed.js'></script>
+
+	    <script src='/static/climate_map/jquery-1.11.3.min.js'></script>
+
+		<script src='/static/climate_map/bootstrap.min.js'></script>
+
+		<script src='/static/climate_map/underscore-min.js'></script>
+
+		<script src='/static/climate_map/typeahead.jquery.min.js'></script>
+
+		<!--
+		<script src='/static/climate_map/us_cities_json.js'></script>
+		-->
+
+	    <script src='/static/climate_map/scripts.js'></script>
+
+
+
+
+		<title>Climate Map</title>
+
+	</head>
+
+	<body>
+
+
+		<header>
+			
+
+			<nav class='navbar navbar-dark navbar-fixed-top'>
+				<a class='navbar-brand' href="#">US Climate Map</a>
+				<ul class='nav navbar-nav'>
+					<li class='nav-item'>
+						<a class='nav-link' href='#'>about</a>
+					</li>
+					<li class='nav-item'>
+						<a class='nav-link' href='#'>info</a>
+					</li>
+			</nav>
+
+
+
+			<!-- <ul>
+				<li><a href="/">US Climate Map</a></li>
+				<li><a href="/">About</a></li>
+				<li><a href="/">Info</a></li>		
+			</ul> -->
+
+		</header>
+
+		<div id="content">
+			<form class="form-inline" id="form" role="form">
+                <div class="form-group">
+                    <label class="sr-only" for="q">City, State, Postal Code</label>
+	                    <input class="form-control" id="q" placeholder="City or Postal Code" type="text"/>
+				</div>
+			</form>
+		</div>
+
+		<div id="graph-container">
+			<div id="graph-window">
+			</div>
+		</div>
+
+		<main>
+
+			<div id="map"></div>
+				
+		</main>
+
+
+		<footer>
+		<p>Climate Map, 2016</p>
+		</footer>
+
+	</body>
+</html>
