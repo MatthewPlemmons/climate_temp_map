@@ -97,79 +97,69 @@ def search(request):
             return HttpResponse(json_data, content_type='application/json') 
 
 
+
 def temperature_data(station_id):
 
-    station_id = 'USC00167344'
-    
-    station_url = "ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/all/" + station_id + ".dly"
+    # Get dataframe of weather data
+    df = download_station_data(station_id[0]['id_code'])
 
-    # Changing position 1 and 2 ( values being 4 and 2 (4 being the year, and 2 being the month))
-    # Combining them to a width of 6, instead of two widths of 4 and 2.
-    widths = [11, 4, 2, 4, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 
+    # Process the dataframe
+    yr_avg = process_weather_data(df)
 
-1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 
+    # Getting rid of the beginning and ending year, as they only
+    # contained partial weather data.
+    yr_avg = yr_avg.iloc[1:-1]
 
-1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 
+    earliest_year = yr_avg.index[0].year
+    most_recent_year = yr_avg.index[len(yr_avg.index) - 1].year
 
-1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1]
+    if most_recent_year <= 2012:
 
-    # starts at 1 to exclude the station ID from the data
-    # 1, 2, 3 are the year, month and measurment type.
-    cols = [1, 2, 3, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64,
-         68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124]
+        # Call .dly download function
+        df = download_station_data(station_id[1]['id_code'])
 
-    #cols = [1, 2, 3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, 63,
-    #    67, 71, 75, 79, 83, 87, 91, 95, 99, 103, 107, 111, 115, 119, 123]
+        # Check the last year on the datetimeindex
+        # if it's > 2012, take the last year on the previous df
+        # and index into the new df starting there.
+        next_station_df = process_weather_data(df)
+        if next_station_df.index[len(next_station_df.index) - 1].year > 2012:
 
-    names = ['year', 'month', 'data_type', 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
+            # Getting a dataframe containing only the years needed.
+            df_recent = next_station_df[str(most_recent_year):]
+            df_recent = df_recent.iloc[1:-1]
+            #yr_avg = pd.concat([yr_avg, yr_avg_recent])
+            if earliest_year >= 1940: 
+                if next_station_df.index[0].year < 1940:
+                    df_earlier = next_station_df[:str(earliest_year)]
+                    df_earlier = df_earlier.iloc[1:-1]
+                    yr_avg = pd.concat([df_earlier, yr_avg, df_recent])
+            yr_avg = pd.concat([yr_avg, df_recent])
 
-    df = pd.read_fwf(station_url, widths=widths, usecols=cols, 
-        header=None, names=names, parse_dates=[['year', 'month']], index_col=0, na_values='-9999')
-
-    # Selects just the TMAX and TMIN rows.
-    df1 = df.loc[df['data_type'].isin(['TMAX'])]
-    df2 = df.loc[df['data_type'].isin(['TMIN'])]
-
-    # If the most recent date in the data is less than 2010
-    # we will pull additional data from another source.
-    #if df['year_month'] < 2010
-
-    # Selects only temperature data, ignoring the column 'data_type'. 
-    # Converts all temperature recordings to Fahrenheit.
-    dfmax = df1.iloc[:, 1:]
-    dfmax = ((dfmax / 10) * 1.8) + 32
-
-    dfmin = df2.iloc[:, 1:]
-    dfmin = ((dfmin / 10) * 1.8) + 32
-
-    max_avg = dfmax.mean(axis=1)
-    min_avg = dfmin.mean(axis=1)
-
-    maxmin_avg = pd.concat([max_avg, min_avg], axis=1)
-
-    avg_temps = pd.concat([max_avg, min_avg, maxmin_avg.mean(axis=1)], axis=1, keys=[0, 1, 2])
 
     trace_hi = go.Scatter(
-        x = avg_temps.index, 
-        y = avg_temps[0],
+        x = yr_avg.index,
+        y = yr_avg[0],
         name = 'Highs'
     )
     trace_lo = go.Scatter(
-        x = avg_temps.index,
-        y = avg_temps[1],
+        x = yr_avg.index,
+        y = yr_avg[1],
         name = 'Lows'
     )
     trace_avg = go.Scatter(
-        x = avg_temps.index,
-        y = avg_temps[2],
+        x = yr_avg.index,
+        y = yr_avg[2],
         name = 'Average'
     )
     
+
     data = [trace_hi, trace_lo, trace_avg]
 
     url = py.plot(data, filename='pandas-temperature')
+
+    url = url + "/highs-lows-average.json"
     return url
+
 
 
 
@@ -230,12 +220,9 @@ def station(request):
     # Sort the stations based on distance to the target city.
     station_list_sorted = sorted(station_list, key=get_dist)
 
-    #nearest_station_id = station_list_sorted[0]['id_code']
-    #graph_url = temperature_data(nearest_station_id)
+    url = temperature_data(station_list_sorted)
 
-    # Select the station at position 0 on the list, which should be
-    # the closest station to the target city, and JSON format it.
-    json_data = (json.dumps(station_list_sorted, sort_keys=True, indent=4))
+    json_data = (json.dumps(url, sort_keys=True, indent=4))
     print(json_data)
     response = HttpResponse(json_data, content_type='application/json')
     return response
@@ -261,5 +248,67 @@ def all_stations(request):
     return response
 
 
+def download_station_data(station_id):
 
+    #station_id = 'USC00167344'
+    
+    station_url = "ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/all/" + station_id + ".dly"
+
+    # Changing position 1 and 2 ( values being 4 and 2 (4 being the year, and 2 being the month))
+    # Combining them to a width of 6, instead of two widths of 4 and 2.
+    widths = [11, 4, 2, 4, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 
+
+1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 
+
+1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 
+
+1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1, 5, 1, 1, 1]
+
+    # starts at 1 to exclude the station ID from the data
+    # 1, 2, 3 are the year, month and measurment type.
+    cols = [1, 2, 3, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64,
+         68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124]
+
+    #cols = [1, 2, 3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, 63,
+    #    67, 71, 75, 79, 83, 87, 91, 95, 99, 103, 107, 111, 115, 119, 123]
+
+    names = ['year', 'month', 'data_type', 1, 2, 3, 4, 5, 6, 7, 8, 9,
+        10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
+
+    df = pd.read_fwf(station_url, widths=widths, usecols=cols, 
+        header=None, names=names, parse_dates=[['year', 'month']], index_col=0, na_values='-9999')
+
+    return df
+
+
+def process_weather_data(df):
+
+    # Selects just the TMAX and TMIN rows.
+    df1 = df.loc[df['data_type'].isin(['TMAX'])]
+    df2 = df.loc[df['data_type'].isin(['TMIN'])]
+
+    # Selects only temperature data, ignoring the column 'data_type'. 
+    # Converts all temperature recordings to Fahrenheit.
+    dfmax = df1.iloc[:, 1:]
+    dfmax = ((dfmax / 10)) #* 1.8) + 32
+
+    dfmin = df2.iloc[:, 1:]
+    dfmin = ((dfmin / 10)) #* 1.8) + 32
+
+    max_avg = dfmax.mean(axis=1)
+    min_avg = dfmin.mean(axis=1)
+
+    maxmin_avg = pd.concat([max_avg, min_avg], axis=1)
+
+    avg_temps = pd.concat([max_avg, min_avg, maxmin_avg.mean(axis=1)], axis=1, keys=[0, 1, 2])
+
+    #if avg_temps.index[0].is_year_start:
+
+    #if avg_temps.index[len(avg_temps.index) - 1].is_year_start:
+
+    # Gets the yearly average of the data
+    g = pd.TimeGrouper('AS')
+    yr_avg = avg_temps.groupby(g).mean()
+
+    return yr_avg
 
