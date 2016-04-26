@@ -120,13 +120,26 @@ function find_nearest_station(selected_city)
 
 }
 
+/*
 function get_temperature_data(stations)
 {
     //TODO: pass list of weather stations back to server.
+    var parameters = {
+        stations: stations,
+    };
+    $.getJSON("temp", parameters)
+    .done(function(data, textStatus, jqXHR) {
+        
+        console.log(data);
+        //get_temperature_data(data);
 
+    })
+    .fail(function(jqXHR, textStatus, errorThrown) {
+        console.log(errorThrown.toString());
+    });
 
 }
-
+*/
 
 function addMarker(location)
 {
